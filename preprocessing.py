@@ -3,7 +3,8 @@ import re
 
 
 def clean_feature(feature):
-    """Cleaning individual features by dropping entries containing specific unwanted patterns and normalizing the rest."""
+    """Cleaning individual features by dropping entries containing specific
+    unwanted patterns and normalizing the rest."""
     unwanted_patterns = [
         r"<[^>]*>",
         r"https?:\/\/\S+",
@@ -24,7 +25,8 @@ def clean_feature(feature):
 def preprocess_record(record):
     main_cat_html = record.get("main_cat", "")
     main_cat_match = re.search(r'alt="([^"]+)"', main_cat_html)
-    main_cat = main_cat_match.group(1) if main_cat_match else "Unknown Category"
+    main_cat = main_cat_match.group(1) \
+        if main_cat_match else "Unknown Category"
 
     features = record.get("feature", [])
     cleaned_features = [
@@ -32,7 +34,6 @@ def preprocess_record(record):
     ]
 
     preprocessed = {
-        "asin": record["asin"],
         "brand": record.get("brand", "unknown"),
         "category": record.get("category"),
         "main_cat": main_cat,
@@ -47,15 +48,24 @@ def preprocess_record(record):
     return preprocessed
 
 
+def process_batch(records, outfile):
+    preprocessed_records = [preprocess_record(record) for record in records]
+    json.dump(preprocessed_records, outfile, indent=4)
+
+
 input_file_path = "Sampled_Amazon_Meta.json"
 output_file_path = "preprocessed_for_itemsets.json"
 
-records = []
-with open(input_file_path, "r") as infile, open(output_file_path, "w") as outfile:
+batch_size = 10000
+
+with open(input_file_path, "r") as infile, \
+     open(output_file_path, "w") as outfile:
+    batch = []
     for line in infile:
         original_record = json.loads(line)
-        preprocessed_record = preprocess_record(original_record)
-        records.append(preprocessed_record)
-        if len(records) == 100:
-            break
-    json.dump(records, outfile, indent=4)
+        batch.append(original_record)
+        if len(batch) == batch_size:
+            process_batch(batch, outfile)
+            batch = []
+    if batch:  # process the last batch if it's not empty
+        process_batch(batch, outfile)

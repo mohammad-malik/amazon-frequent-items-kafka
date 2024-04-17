@@ -4,7 +4,11 @@ from tqdm import tqdm
 
 
 def sample_json(
-    input_file, output_file, target_size_gb, filter_key="also_buy", batch_size=10000
+    input_file,
+    output_file,
+    target_size_gb,
+    filter_key="also_buy",
+    batch_size=10000
 ):
     target_size_bytes = target_size_gb * 1024**3
     current_size_bytes = 0
@@ -13,7 +17,9 @@ def sample_json(
         output_file, "w", encoding="utf-8"
     ) as outfile:
         batch = []
-        for line in tqdm(infile, desc=f"Sampling {target_size_gb}GB from {input_file}"):
+        for line in tqdm(
+                infile, desc=f"Sampling {target_size_gb}GB from {input_file}"):
+
             batch.append(line)
             if len(batch) >= batch_size:
                 random.shuffle(batch)
