@@ -16,6 +16,7 @@ def clean_feature(feature):
         r"^$",
         "unknown",
     ]
+
     for pattern in unwanted_patterns:
         if re.search(pattern, feature, re.IGNORECASE):
             return None
@@ -47,16 +48,12 @@ def preprocess_record(record):
 
     # Using the clean_feature function to clean the features.
     features = record.get("feature", [])
-    cleaned_features = filter(
-        None,
-        (clean_feature(feature) for feature in features))
+    cleaned_features = filter(None, (clean_feature(feature) for feature in features))
 
     preprocessed = {
         "asin": record.get("asin", "").strip(),
         "brand": record.get("brand", "").strip() or None,
-        "category": [
-            cat.strip() for cat in record.get("category", []) if cat.strip()
-        ],
+        "category": [cat.strip() for cat in record.get("category", []) if cat.strip()],
         "main_cat": main_cat,
         "features": list(cleaned_features),
         "also_buy": list(record.get("also_buy", [])),
@@ -73,27 +70,32 @@ def process_batch(records):
 
 def main():
     input_file_path = "Sampled_Amazon_Meta.json"
-    output_file_path = "preprocessed_for_itemsets.json"
+    output_file_path = "test.json"
 
     batch_size = 100000
 
-    with open(input_file_path, "r") as infile, \
-         open(output_file_path, "wb") as outfile:
+    with open(input_file_path, "r") as infile, open(output_file_path, "wb") as outfile:
         batch = []
+        counter = 0 
         for line in infile:
+            if counter >= 5:  
+                break
             original_record = orjson.loads(line)
             batch.append(original_record)
             if len(batch) == batch_size:
                 preprocessed_records = process_batch(batch)
-                outfile.write(orjson.dumps(
-                    preprocessed_records, option=orjson.OPT_INDENT_2))
+                outfile.write(
+                    orjson.dumps(preprocessed_records, option=orjson.OPT_INDENT_2)
+                )
                 batch = []
 
-        if batch:  # process the last batch if it's not empty
+        if batch:
             preprocessed_records = process_batch(batch)
             outfile.write(
-                orjson.dumps(preprocessed_records, option=orjson.OPT_INDENT_2))
+                orjson.dumps(preprocessed_records, option=orjson.OPT_INDENT_2)
+            )
 
+    counter += 1 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
