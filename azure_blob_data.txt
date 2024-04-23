@@ -1,0 +1,3 @@
+DefaultEndpointsProtocol=https;AccountName=waw;AccountKey=c8iJ6KZhecK2EFK6lPzgX7BZoRKdOqUv7O0A9KdplvC0M9/6fgfrlfKCM9I6eQq2OKidUhTIMt9Z+ASt62u+TQ==;EndpointSuffix=core.windows.net
+container1
+Sampled_Amazon_Meta.json
