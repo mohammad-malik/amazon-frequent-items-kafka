@@ -6,7 +6,8 @@ from azure.storage.blob import BlobServiceClient
 
 
 def clean_feature(feature):
-    """Cleaning individual features by removing unwanted entries, normalizing the rest."""
+    """Cleaning individual features by removing unwanted entries, \
+    normalizing the rest."""
     unwanted_patterns = [
         r"<[^>]*>",
         r"https?:\/\/\S+",
@@ -83,6 +84,10 @@ def main():
         "processed-" + blob_name
     )
 
+    # Initialize the blob if it doesn't exist
+    if not processed_blob_client.exists():
+        processed_blob_client.upload_blob(b"", blob_type="AppendBlob")
+
     stream = blob_client.download_blob().chunks()
     for chunk in stream:
         data = buffer + chunk.decode("utf-8")
@@ -101,7 +106,6 @@ def main():
                              for record in preprocessed_records]
                         ),
                         blob_type="AppendBlob",
-                        overwrite=True,
                     )
                     batch = []
 
@@ -113,7 +117,6 @@ def main():
                  for record in preprocessed_records]
             ),
             blob_type="AppendBlob",
-            overwrite=True,
         )
 
 
