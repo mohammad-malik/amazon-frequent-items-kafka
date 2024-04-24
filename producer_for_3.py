@@ -21,21 +21,20 @@ def get_data_from_file(file_path):
 
 def parse_price(price_str):
     if price_str is None:
-        return 0.0
+        return 0.0  
     price_str = str(price_str).replace("$", "").replace(" ", "")
     if "-" in price_str:
         prices = list(map(float, price_str.split("-")))
         return sum(prices) / len(prices)
     try:
-        return float(price_str)
+        return float(price_str)  
     except ValueError:
-        return 0.0
+        return 0.0  
 
 
 def on_send_success(record_metadata):
     print(
-        f"Message sent to {record_metadata.topic} partition " +
-        f"{record_metadata.partition} offset {record_metadata.offset}"
+        f"Message sent to {record_metadata.topic} partition {record_metadata.partition} offset {record_metadata.offset}"
     )
 
 
@@ -51,16 +50,16 @@ data = get_data_from_file("nice.json")
 
 for item in data:
     asin = item.get("asin", "")
-    price_str = item.get("price", "0.0")
+    price_str = item.get("price", "0.0")  
     price = parse_price(price_str)
     category = item.get("category", [])
 
     message = {"transaction_id": asin, "amount": price, "category": category}
-    future = producer.send("transaction_topic", value=message)
+    future = producer.send("transaction_topic3", value=message)
     future.add_callback(on_send_success)
     future.add_errback(on_send_error)
     print(f"Sending: {message}")
-    time.sleep(1)
+    time.sleep(1)  
 
 producer.flush()
 print("All messages sent successfully!")

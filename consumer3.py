@@ -1,9 +1,9 @@
 import json
 from kafka import KafkaConsumer
 import numpy as np
-from pymongo import MongoClient
-from scipy.stats import iqr
 import matplotlib.pyplot as plt
+from scipy.stats import iqr
+from pymongo import MongoClient
 
 
 class AnomalyDetectionConsumer:
@@ -11,10 +11,11 @@ class AnomalyDetectionConsumer:
         self,
         topic,
         bootstrap_servers,
-        db_uri,
+        window_size,
+        moving_average_window,
+        mongo_uri,
         db_name,
         collection_name,
-        output_file
     ):
         self.consumer = KafkaConsumer(
             topic,
@@ -22,87 +23,122 @@ class AnomalyDetectionConsumer:
             auto_offset_reset="earliest",
             value_deserializer=lambda x: json.loads(x.decode("utf-8")),
         )
-        self.client = MongoClient(db_uri)
-        self.db = self.client[db_name]
-        self.collection = self.db[collection_name]
+        self.window_size = window_size
+        self.moving_average_window = moving_average_window
         self.transactions = []
-        self.window_size = 50
-        self.low_value_threshold = 1.0  # For low value anomaly detection.
-        self.output_file = output_file
         self.amounts = []
         self.times = []
         self.anomalies = []
+        self.moving_averages = []
 
-        # Plot setup.
+        # MongoDB setup
+        self.client = MongoClient(mongo_uri)
+        self.db = self.client[db_name]
+        self.collection = self.db[collection_name]
+
+        # Plot setup
         plt.ion()
         self.fig, self.ax = plt.subplots()
-        self.ax.set_title("Real-time Transaction Monitoring")
-        self.ax.set_xlabel("Transaction Count")
-        self.ax.set_ylabel("Transaction Amount")
+        self.ax.set_title(
+            "Real-time Transaction Monitoring with Moving Average")
+        self.ax.set_xlabel(
+            "Transaction Count")
+        self.ax.set_ylabel(
+            "Transaction Amount")
+
+    def insert_anomaly_to_db(self, transaction):
+        if transaction["is_anomaly"]:
+            self.collection.insert_one(transaction)
 
     def update_plot(self):
         self.ax.clear()
-        self.ax.plot(self.times, self.amounts, label="Transaction Amount")
+        self.ax.plot(
+            self.times,
+            self.amounts,
+            label="Transaction Amount",
+            marker="o"
+        )
+        self.ax.plot(
+            self.times,
+            self.moving_averages,
+            label="Moving Average",
+            linestyle="--",
+            color="orange",
+        )
 
-        # Highlighting anomalies.
         anomaly_indices = [
-            idx - 1 for idx in self.anomalies if idx - 1 < len(self.amounts)
-        ]
-        anomaly_values = [self.amounts[i] for i in anomaly_indices]
+            idx for idx, val in enumerate(self.anomalies) if val]
+        anomaly_values = [
+            self.amounts[i] for i in anomaly_indices]
         self.ax.scatter(
             anomaly_indices,
             anomaly_values,
             color="red",
-            label="Anomalies"
+            label="Anomalies",
+            zorder=5
         )
         self.ax.legend()
         plt.draw()
         plt.pause(0.01)
 
-    def detect_anomalies(self, new_transaction, idx):
+    def detect_anomalies(self, new_transaction):
         self.transactions.append(new_transaction)
         if len(self.transactions) > self.window_size:
             self.transactions.pop(0)
 
-        if len(self.transactions) >= 30:
-            amounts = [t["amount"] for t in self.transactions]
-            median_amount = np.median(amounts)
-            iqr_amount = iqr(amounts)
-            lower_bound = median_amount - 2 * iqr_amount
-            upper_bound = median_amount + 2 * iqr_amount
+        amounts = [t["amount"] for t in self.transactions]
+        median_amount = np.median(amounts)
+        iqr_amount = iqr(amounts)
+        lower_bound = median_amount - 1.5 * iqr_amount
+        upper_bound = median_amount + 1.5 * iqr_amount
 
-            if (
-                (new_transaction["amount"] > upper_bound)
-                or (new_transaction["amount"] < lower_bound)
-                or (new_transaction["amount"] < self.low_value_threshold)
-            ):
-                anomaly_msg = \
-                    "Anomaly detected: Transaction ID" + \
-                    f" {new_transaction['transaction_id']}" + \
-                    f" with amount {new_transaction['amount']}"
+        is_anomaly = False
+        if new_transaction["amount"] < 1.0:
+            is_anomaly = True
+            print(
+                f"Low value anomaly detected at ${new_transaction['amount']}")
+        elif (
+            new_transaction["amount"] > upper_bound
+            or new_transaction["amount"] < lower_bound
+        ):
+            is_anomaly = True
+            print(
+                f"Anomaly detected at ${new_transaction['amount']}" +
+                f" outside bounds [{lower_bound}, {upper_bound}]"
+            )
 
-                print(anomaly_msg)
-                self.anomalies.append(len(self.amounts))
+        self.anomalies.append(is_anomaly)
+        new_transaction["is_anomaly"] = is_anomaly
+        self.insert_anomaly_to_db(new_transaction)
+        return is_anomaly
+
+    def calculate_moving_average(self):
+        if len(self.amounts) >= self.moving_average_window:
+            window_amounts = self.amounts[-self.moving_average_window:]
+            average = np.mean(window_amounts)
+            self.moving_averages.append(average)
+        else:
+            self.moving_averages.append(np.mean(self.amounts))
 
     def run(self):
-        idx = 0
         print("Starting the consumer for anomaly detection...")
-        for message in self.consumer:
+        for idx, message in enumerate(self.consumer):
             transaction_data = message.value
             self.amounts.append(transaction_data["amount"])
             self.times.append(idx)
-            self.detect_anomalies(transaction_data, idx)
+            self.calculate_moving_average()
+            self.detect_anomalies(transaction_data)
             self.update_plot()
-            idx += 1
 
 
 if __name__ == "__main__":
     consumer = AnomalyDetectionConsumer(
-        topic="transaction_topic",
+        topic="transaction_topic3",
         bootstrap_servers=["localhost:9092"],
-        db_uri="mongodb://localhost:27017/",
+        window_size=50,
+        moving_average_window=10,
+        mongo_uri="mongodb://localhost:27017",
         db_name="anomaly_detection",
         collection_name="transactions",
-        output_file="anomaly_detection_output.txt",
     )
     consumer.run()
