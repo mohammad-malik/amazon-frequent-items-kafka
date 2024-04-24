@@ -31,29 +31,13 @@ alt_text_regex = re.compile(r'alt="([^"]+)"')
 
 def preprocess_record(record):
     """Process each record to clean and normalize data fields."""
-    main_cat_html = record.get("main_cat", "")
-    main_cat_match = alt_text_regex.search(main_cat_html)
-    main_cat = (
-        main_cat_match.group(1)
-        if main_cat_match
-        else record.get("main_cat", "").strip()
-    )
-    if main_cat.lower() in ["unknown category", "unknown", ""]:
-        main_cat = None
-
-    features = record.get("feature", [])
-    cleaned_features = filter(
-        None,
-        (clean_feature(feature) for feature in features))
 
     preprocessed = {
         "asin": record.get("asin", "").strip(),
-        "brand": record.get("brand", "").strip() or None,
         "category": [
             cat.strip() for cat in record.get("category", []) if cat.strip()
         ],
-        "main_cat": main_cat,
-        "features": list(cleaned_features),
+        "price": record.get("price", 0.0),
         "also_buy": list(record.get("also_buy", [])),
         "title": record.get("title", "").strip(),
     }

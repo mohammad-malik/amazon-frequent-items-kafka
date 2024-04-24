@@ -35,27 +35,12 @@ alt_text_regex = re.compile(r'alt="([^"]+)"')
 def preprocess_record(record):
     """Process each record to clean and normalize data fields."""
 
-    # For the main category, extracting alt-text and removing junk.
-    main_cat_html = record.get("main_cat", "")
-    main_cat_match = alt_text_regex.search(main_cat_html)
-    main_cat = (
-        main_cat_match.group(1)
-        if main_cat_match
-        else record.get("main_cat", "").strip()
-    )
-    if main_cat.lower() in ["unknown category", "unknown", ""]:
-        main_cat = None
-
-    # Using the clean_feature function to clean the features.
-    features = record.get("feature", [])
-    cleaned_features = filter(None, (clean_feature(feature) for feature in features))
-
     preprocessed = {
         "asin": record.get("asin", "").strip(),
-        "brand": record.get("brand", "").strip() or None,
-        "category": [cat.strip() for cat in record.get("category", []) if cat.strip()],
-        "main_cat": main_cat,
-        "features": list(cleaned_features),
+        "category": [
+            cat.strip() for cat in record.get("category", []) if cat.strip()
+        ],
+        "price": record.get("price", 0.0),
         "also_buy": list(record.get("also_buy", [])),
         "title": record.get("title", "").strip(),
     }
@@ -74,18 +59,22 @@ def main():
 
     batch_size = 100000
 
-    with open(input_file_path, "r") as infile, open(output_file_path, "wb") as outfile:
+    with open(input_file_path, "r") as infile, \
+         open(output_file_path, "wb") as outfile:
         batch = []
-        counter = 0 
+        counter = 0
         for line in infile:
-            if counter >= 5:  
+            if counter >= 5:
                 break
             original_record = orjson.loads(line)
             batch.append(original_record)
             if len(batch) == batch_size:
                 preprocessed_records = process_batch(batch)
                 outfile.write(
-                    orjson.dumps(preprocessed_records, option=orjson.OPT_INDENT_2)
+                    orjson.dumps(
+                        preprocessed_records,
+                        option=orjson.OPT_INDENT_2
+                    )
                 )
                 batch = []
 
@@ -95,7 +84,8 @@ def main():
                 orjson.dumps(preprocessed_records, option=orjson.OPT_INDENT_2)
             )
 
-    counter += 1 
+    counter += 1
+
 
 if __name__ == "__main__":
     main()
