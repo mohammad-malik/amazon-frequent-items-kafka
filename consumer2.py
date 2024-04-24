@@ -32,21 +32,21 @@ class EnhancedPCY:
         for item, count in self.item_counts.items():
             if count >= self.support_threshold:
                 frequent_itemsets[(item,)] = count
-                
+
         for transaction in self.data_window:
             for r in range(2, len(transaction) + 1):
                 for itemset in combinations(sorted(transaction), r):
                     count = min(self.item_counts[item] for item in itemset)
                     if count >= self.support_threshold:
                         frequent_itemsets[itemset] = count
-                        
+
         return frequent_itemsets
 
 
 def generate_association_rules(itemsets, min_confidence, total_transactions):
     rules = []
     for itemset in itemsets.keys():
-        itemset_support = itemsets[itemset] / total_transactions  # P(A ∩ B)
+        itemset_support = itemsets[itemset] / total_transactions  # P(A ∩ B).
         if len(itemset) > 1:
             for i in range(1, len(itemset)):
                 for antecedent in combinations(itemset, i):
@@ -55,11 +55,11 @@ def generate_association_rules(itemsets, min_confidence, total_transactions):
                     )
                     antecedent_support = (
                         itemsets.get(antecedent, 0) / total_transactions
-                    )  # P(A)
+                    )  # P(A).
                     if antecedent_support > 0:
                         confidence = itemset_support / antecedent_support
                         if confidence >= min_confidence:
-                            # Calculating support for the union of antecedent and consequent
+                            # Support for union of antecedent and consequent.
                             union_support = (
                                 itemsets.get(itemset, 0) / total_transactions
                             )
@@ -70,7 +70,8 @@ def generate_association_rules(itemsets, min_confidence, total_transactions):
                                 * itemsets.get(consequent, 0)
                                 / total_transactions
                             )
-                            rules.append((antecedent, consequent, confidence, interest))
+                            rules.append(
+                                (antecedent, consequent, confidence, interest))
     return rules
 
 
@@ -88,26 +89,22 @@ def process_messages(consumer, db):
 
     while True:
         # Poll for messages
-        messages = consumer.poll(
-            timeout_ms=1000
-        )  
+        messages = consumer.poll(timeout_ms=1000)
 
         if messages:
             start_time = time.time()
 
             for _, message in messages.items():
                 for msg in message:
-                    print("Received message:", msg.value) 
+                    print("Received message:", msg.value)
                     if "also_buy" in msg.value:
                         transaction = msg.value["also_buy"]
                         transactions.append(transaction)
-                        print(
-                            "Added transaction to list:", transaction
-                        )  
+                        print("Added transaction to list:", transaction)
         else:
-            # 
+            #
             if time.time() - start_time > 10:
-                print("No messages received within the timeout period. Exiting...")
+                print("No messages received within timeout period. Exiting...")
                 break
 
     print("All messages received. Processing transactions...")
@@ -134,7 +131,8 @@ def process_messages(consumer, db):
                 antecedent_str = str(rule[0])
                 consequent_str = str(rule[1])
                 print(
-                    f"Rule: {antecedent_str} -> {consequent_str}, Confidence: {rule[2]}, Interest: {rule[3]}"
+                    f"Rule: {antecedent_str} -> {consequent_str}" +
+                    f"Confidence: {rule[2]}, Interest: {rule[3]}"
                 )
                 db.rules.insert_many(
                     [

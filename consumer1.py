@@ -63,7 +63,8 @@ def generate_rules_with_interest(itemsets, min_confidence, total_transactions):
                             antecedent_support * consequent_support
                         )
                         if confidence >= min_confidence:
-                            rules.append((antecedent, consequent, confidence, interest))
+                            rules.append(
+                                (antecedent, consequent, confidence, interest))
     return rules
 
 
@@ -78,7 +79,7 @@ def process_messages(consumer, db):
             if frequent_itemsets:
                 print(f"Frequent Itemsets: {frequent_itemsets}")
                 total_transactions = len(window.window)
-                min_confidence = 0.5 
+                min_confidence = 0.5
                 rules = generate_rules_with_interest(
                     frequent_itemsets, min_confidence, total_transactions
                 )
