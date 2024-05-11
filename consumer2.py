@@ -32,14 +32,15 @@ class EnhancedPCY:
         for item, count in self.item_counts.items():
             if count >= self.support_threshold:
                 frequent_itemsets[(item,)] = count
-
         for transaction in self.data_window:
-            for r in range(2, len(transaction) + 1):
-                for itemset in combinations(sorted(transaction), r):
-                    count = min(self.item_counts[item] for item in itemset)
-                    if count >= self.support_threshold:
-                        frequent_itemsets[itemset] = count
-
+            for pair in combinations(sorted(transaction), 2):
+                if (
+                    self.hash_buckets[self.hash_combination(pair)]
+                    >= self.support_threshold
+                ):
+                    frequent_itemsets[pair] = self.hash_buckets[
+                        self.hash_combination(pair)
+                    ]
         return frequent_itemsets
 
 
@@ -63,10 +64,9 @@ def generate_association_rules(itemsets, min_confidence, total_transactions):
                             union_support = (
                                 itemsets.get(itemset, 0) / total_transactions
                             )
-                            # Calculating interest
-                            interest = (
-                                union_support
-                                - antecedent_support
+                            # Calculating interest.
+                            interest = union_support - (
+                                antecedent_support
                                 * itemsets.get(consequent, 0)
                                 / total_transactions
                             )
@@ -79,9 +79,26 @@ def json_deserializer(data):
     return json.loads(data.decode("utf-8"))
 
 
+def insert_rules_into_mongodb(rules, db):
+    if rules:
+        db.rules.insert_many(
+            [
+                {
+                    "antecedent": rule[0],
+                    "consequent": rule[1],
+                    "confidence": rule[2],
+                    "interest": rule[3],
+                }
+                for rule in rules
+            ]
+        )
+        print("Rules inserted into MongoDB.")
+    else:
+        print("No rules to insert into MongoDB.")
+
+
 def process_messages(consumer, db):
     window = EnhancedPCY(bucket_size=100, support_threshold=2)
-    transactions = []
     print("Starting message processing...")
 
     # Track the start time
@@ -89,9 +106,12 @@ def process_messages(consumer, db):
 
     while True:
         # Poll for messages
-        messages = consumer.poll(timeout_ms=1000)
+        messages = consumer.poll(
+            timeout_ms=1000
+        )  # Poll for messages with a timeout of 1 second
 
         if messages:
+            # Reset the start time since messages are being received.
             start_time = time.time()
 
             for _, message in messages.items():
@@ -99,64 +119,56 @@ def process_messages(consumer, db):
                     print("Received message:", msg.value)
                     if "also_buy" in msg.value:
                         transaction = msg.value["also_buy"]
-                        transactions.append(transaction)
-                        print("Added transaction to list:", transaction)
+                        print(
+                            "Processing transaction:", transaction
+                        )  # Print the transaction being processed
+                        window.process_transaction(transaction)
+
+                        frequent_itemsets = window.get_frequent_itemsets()
+                        total_transactions = len(window.data_window)
+
+                        if frequent_itemsets:
+                            min_confidence = 0.5
+                            association_rules = generate_association_rules(
+                                frequent_itemsets,
+                                min_confidence,
+                                total_transactions
+                            )
+                            if association_rules:
+                                print("Association Rules:")
+                                for antecedent, \
+                                    consequent, \
+                                    confidence, \
+                                    interest \
+                                        in association_rules:
+                                    print(
+                                        f"Rule: {antecedent} => {consequent}," +
+                                        f" Confidence: {confidence:.2f}, "+
+                                        f"Interest: {interest:.2f}"
+                                    )
+                                insert_rules_into_mongodb(association_rules, db)
+                            else:
+                                print("No association rules found.")
+                        else:
+                            print("No frequent itemsets found.")
         else:
-            #
+            # Check if no messages have been received for more than 10 seconds.
             if time.time() - start_time > 10:
                 print("No messages received within timeout period. Exiting...")
                 break
 
-    print("All messages received. Processing transactions...")
-    print(
-        "Number of transactions:", len(transactions)
-    )  # Print the number of transactions
-    for transaction in transactions:
-        print(
-            "Processing transaction:", transaction
-        )  # Print the transaction being processed
-        window.process_transaction(transaction)
-
-    frequent_itemsets = window.get_frequent_itemsets()
-    if frequent_itemsets:
-        print(f"Frequent Itemsets: {frequent_itemsets}")
-        total_transactions = len(transactions)
-        min_confidence = 0.5
-        association_rules = generate_association_rules(
-            frequent_itemsets, min_confidence, total_transactions
-        )
-        if association_rules:
-            print("Generated association rules:")
-            for rule in association_rules:
-                antecedent_str = str(rule[0])
-                consequent_str = str(rule[1])
-                print(
-                    f"Rule: {antecedent_str} -> {consequent_str}" +
-                    f"Confidence: {rule[2]}, Interest: {rule[3]}"
-                )
-                db.rules.insert_many(
-                    [
-                        {
-                            "antecedent": antecedent_str,
-                            "consequent": consequent_str,
-                            "confidence": rule[2],
-                            "interest": rule[3],
-                        }
-                    ]
-                )
-        else:
-            print("No association rules generated.")
-    else:
-        print("No frequent itemsets found in the current window.")
-
 
 if __name__ == "__main__":
-    client = MongoClient("mongodb://localhost:27017/")
-    db = client["association_rules_db"]
     consumer = KafkaConsumer(
-        "topic9",
+        "main_topic",
         bootstrap_servers=["localhost:9092"],
         auto_offset_reset="earliest",
         value_deserializer=json_deserializer,
     )
+
+    # Setup MongoDB connection
+    client = MongoClient("localhost", 27017)
+    db = client.pcy
+
     process_messages(consumer, db)
+    consumer.close()

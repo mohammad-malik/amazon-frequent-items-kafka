@@ -119,11 +119,16 @@ def process_messages(consumer, db):
 
 
 if __name__ == "__main__":
-    client = MongoClient("mongodb://localhost:27017/")
+    client = MongoClient("mongodb://10.0.0.4:27017/")
     db = client["apriori_db"]
     consumer = KafkaConsumer(
         "main_topic",
-        bootstrap_servers=["localhost:9092"],
+        bootstrap_servers=[
+            "10.0.0.4:9092",
+            "10.0.0.5:9092",
+            "192.168.0.4:9092",
+            "192.168.0.5:9092"
+        ],
         auto_offset_reset="earliest",
         value_deserializer=json_deserializer,
     )

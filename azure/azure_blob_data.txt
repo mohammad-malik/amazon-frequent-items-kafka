@@ -1,0 +1,3 @@
+{Connection string here}
+{Container name here}
+All_Amazon_Meta.json

@@ -143,10 +143,15 @@ class AnomalyDetectionConsumer:
 if __name__ == "__main__":
     consumer = AnomalyDetectionConsumer(
         topic="topic_for_consumer3",
-        bootstrap_servers=["localhost:9092"],
+        bootstrap_servers=[
+            "10.0.0.4:9092",
+            "10.0.0.5:9092",
+            "192.168.0.4:9092",
+            "192.168.0.5:9092"
+        ],
         window_size=50,
         moving_average_window=10,
-        mongo_uri="mongodb://localhost:27017",
+        mongo_uri="mongodb://10.0.0.4:27017",
         db_name="anomaly_detection_db",
         collection_name="anomaly_detection_collection",
     )

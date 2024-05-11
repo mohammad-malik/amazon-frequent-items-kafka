@@ -55,7 +55,7 @@ def process_batch(records):
 
 def main():
     input_file_path = "Sampled_Amazon_Meta.json"
-    output_file_path = "test.json"
+    output_file_path = "preprocessed-Sampled_Amazon_Meta.json"
 
     batch_size = 100000
 

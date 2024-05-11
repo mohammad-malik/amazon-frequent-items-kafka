@@ -29,10 +29,7 @@ if __name__ == "__main__":
         bootstrap_servers=["localhost:9092"], value_serializer=json_serializer
     )
     transactions = read_transactions_from_json(
-        "preprocessed_for_itemsets.json")
+        "preprocessed-Sampled_Amazon_Meta.json")
 
-    # Send transactions to PCY topic
-    produce_transactions(producer, "topic11", transactions)
-
-    # Send transactions to Apriori topic
-    produce_transactions(producer, "topic12", transactions)
+    # Send transactions to main topic
+    produce_transactions(producer, "main_topic", transactions)

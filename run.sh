@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# TO RUN LOCALLY:
+# FIrst, sample the dataset using the sampling script included. It should create a new file called "Sampled_Amazon_Meta.csv".
+# Then run the preprocessing script. It should create "preprocessed-Sampled_Amazon_Meta.csv".
+# Then run this script.
+
 # Ensure the script exits cleanly handling background processes
 trap "exit" INT TERM ERR
 trap "kill 0" EXIT
@@ -32,7 +37,7 @@ start_consumer() {
         echo "Producer started with PID $PROD_PID"
 
         echo "Starting Apriori Consumer..."
-        python3 A-priori.py &
+        python3 consumer1.py &
     elif [[ $1 == "2" ]]; then
         echo "Starting the producer..."
         python3 producer_for_1_2.py &
@@ -40,12 +45,14 @@ start_consumer() {
         echo "Producer started with PID $PROD_PID"
 
         echo "Starting PCY Consumer..."
-        python3 PCY.py &
+        python3 consumer2.py &
     elif [[ $1 == "3" ]]; then
-        echo "Starting the producer..."
+        echo "Starting the producers..."
+        python3 producer_for_1_2.py &
+        PROD1_PID=$!
         python3 producer_for_3.py &
-        PROD_PID=$!
-        echo "Producer started with PID $PROD_PID"
+        PROD2_PID=$!
+        echo "Producers started with PID $PROD1_PID and $PROD2_PID"
         echo "Starting Anomaly Detection Consumer..."
         python3 consumer3.py &
     else
