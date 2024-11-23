@@ -69,4 +69,4 @@ While Azure Blob Storage provides excellent cloud storage for the preprocessed d
 ## Team:
 - **Manal Aamir**: [GitHub](https://github.com/manal-aamir)
 - **Mohammad Malik**: [GitHub](https://github.com/mohammad-malik)
-- **Aqsa Fayaz**: [GitHub](https://github.com/Aqsa-Fayyaz)
+- **Aqsa Fayaz**: [GitHub](https://github.com/Aqsa-Fayaz)
